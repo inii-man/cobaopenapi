@@ -1,0 +1,543 @@
+openapi: "3.0.3"
+info:
+  title: Dokumen Interkoneksi Data K/L API
+  description: |
+    Kontrak API untuk pengelolaan Dokumen Interkoneksi Data Kementerian/Lembaga.
+
+    ### Fitur utama:
+    - List dokumen dengan pagination
+    - Detail dokumen berdasarkan ID
+    - Membuat dokumen baru
+
+    ### Konvensi Response Envelope:
+    Setiap response mengikuti struktur baku:
+    ```json
+    {
+      "success": true,
+      "data": {...},
+      "meta": {"request_id": "...", "timestamp": "..."}
+    }
+    ```
+  version: "1.0.0"
+  contact:
+    name: Tim Integrasi Data NQA
+    email: api-support@nqa.go.id
+
+servers:
+  - url: https://api.nqa.go.id
+    description: Production Server
+  - url: https://staging-api.nqa.go.id
+    description: Staging Server
+  - url: http://localhost:8000
+    description: Local Development
+
+tags:
+  - name: Documents
+    description: Operasi CRUD untuk Dokumen Interkoneksi Data K/L
+
+# ===========================================================
+# PATHS
+# ===========================================================
+paths:
+
+  # -------------------------------------------------------
+  # GET /v1/documents  --  List semua dokumen + pagination
+  # -------------------------------------------------------
+  /v1/documents:
+    get:
+      tags:
+        - Documents
+      summary: List Dokumen
+      description: Mengambil daftar dokumen interkoneksi data K/L dengan dukungan pagination.
+      operationId: listDocuments
+      parameters:
+        - name: page
+          in: query
+          description: Nomor halaman (dimulai dari 1)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: page_size
+          in: query
+          description: Jumlah item per halaman
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          example: 10
+        - name: category
+          in: query
+          description: Filter berdasarkan kategori dokumen
+          required: false
+          schema:
+            type: string
+            enum: [PERJANJIAN, NOTA_KESEPAHAMAN, SK, SURAT_EDARAN, LAINNYA]
+        - name: status
+          in: query
+          description: Filter berdasarkan status dokumen
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, AKTIF, KADALUARSA, DICABUT]
+      responses:
+        "200":
+          description: Berhasil mengambil daftar dokumen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentListResponse"
+              example:
+                success: true
+                data:
+                  - id: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+                    document_code: "DOC-2025-001"
+                    title: "Perjanjian Interkoneksi Data Kependudukan"
+                    category: "PERJANJIAN"
+                    status: "AKTIF"
+                    file_url: "https://storage.nqa.go.id/documents/DOC-2025-001.pdf"
+                    created_at: "2025-01-15T08:30:00+07:00"
+                  - id: "a9b8c7d6-e5f4-3210-fedc-ba9876543210"
+                    document_code: "DOC-2025-002"
+                    title: "Nota Kesepahaman Pertukaran Data Perpajakan"
+                    category: "NOTA_KESEPAHAMAN"
+                    status: "DRAFT"
+                    file_url: "https://storage.nqa.go.id/documents/DOC-2025-002.pdf"
+                    created_at: "2025-02-01T10:00:00+07:00"
+                meta:
+                  request_id: "req-abc123"
+                  timestamp: "2025-03-01T14:00:00+07:00"
+                  pagination:
+                    page: 1
+                    page_size: 10
+                    total_items: 2
+                    total_pages: 1
+        "422":
+          description: Parameter tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Parameter query tidak valid"
+                  detail:
+                    - field: "page"
+                      message: "Nilai page harus berupa integer positif"
+                    - field: "page_size"
+                      message: "Nilai page_size tidak boleh melebihi 100"
+                meta:
+                  path: "/v1/documents"
+
+    # -------------------------------------------------------
+    # POST /v1/documents  --  Buat dokumen baru
+    # -------------------------------------------------------
+    post:
+      tags:
+        - Documents
+      summary: Buat Dokumen Baru
+      description: Membuat entri dokumen interkoneksi data baru.
+      operationId: createDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentRequest"
+            example:
+              document_code: "DOC-2025-003"
+              title: "Perjanjian Interkoneksi Data Kesehatan 2025"
+              category: "PERJANJIAN"
+              status: "DRAFT"
+              file_url: "https://storage.nqa.go.id/documents/DOC-2025-003.pdf"
+      responses:
+        "201":
+          description: Dokumen berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDetailResponse"
+              example:
+                success: true
+                data:
+                  id: "f1e2d3c4-b5a6-9870-dcfe-123456789abc"
+                  document_code: "DOC-2025-003"
+                  title: "Perjanjian Interkoneksi Data Kesehatan 2025"
+                  category: "PERJANJIAN"
+                  status: "DRAFT"
+                  file_url: "https://storage.nqa.go.id/documents/DOC-2025-003.pdf"
+                  created_at: "2025-03-01T14:05:00+07:00"
+                meta:
+                  request_id: "req-xyz789"
+                  timestamp: "2025-03-01T14:05:00+07:00"
+        "422":
+          description: Data request tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Data yang dikirim tidak valid"
+                  detail:
+                    - field: "title"
+                      message: "Field title wajib diisi"
+                    - field: "category"
+                      message: "Category harus salah satu dari: PERJANJIAN, NOTA_KESEPAHAMAN, SK, SURAT_EDARAN, LAINNYA"
+                meta:
+                  path: "/v1/documents"
+
+  # -------------------------------------------------------
+  # GET /v1/documents/{id}  --  Detail dokumen by ID
+  # -------------------------------------------------------
+  /v1/documents/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Detail Dokumen
+      description: Mengambil detail satu dokumen berdasarkan ID unik-nya.
+      operationId: getDocumentById
+      parameters:
+        - name: id
+          in: path
+          description: ID unik dokumen (UUID)
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: Berhasil mengambil detail dokumen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDetailResponse"
+              example:
+                success: true
+                data:
+                  id: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+                  document_code: "DOC-2025-001"
+                  title: "Perjanjian Interkoneksi Data Kependudukan"
+                  category: "PERJANJIAN"
+                  status: "AKTIF"
+                  file_url: "https://storage.nqa.go.id/documents/DOC-2025-001.pdf"
+                  created_at: "2025-01-15T08:30:00+07:00"
+                meta:
+                  request_id: "req-def456"
+                  timestamp: "2025-03-01T14:10:00+07:00"
+        "404":
+          description: Dokumen tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error:
+                  code: "DOCUMENT_NOT_FOUND"
+                  message: "Dokumen dengan ID tersebut tidak ditemukan"
+                  detail: []
+                meta:
+                  path: "/v1/documents/d1a2b3c4-xxxx-xxxx-xxxx-ef1234567890"
+        "422":
+          description: ID tidak valid (bukan format UUID)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Format ID tidak valid"
+                  detail:
+                    - field: "id"
+                      message: "ID harus berupa UUID v4 yang valid"
+                meta:
+                  path: "/v1/documents/bukan-uuid"
+
+# ===========================================================
+# COMPONENTS / REUSABLE SCHEMAS
+# ===========================================================
+components:
+  schemas:
+
+    # ---- Domain Model ----
+    Document:
+      type: object
+      description: Representasi lengkap sebuah Dokumen Interkoneksi Data K/L
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier unik dokumen (UUID v4)
+          example: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+          readOnly: true
+        document_code:
+          type: string
+          description: Kode dokumen unik yang mudah dibaca manusia
+          maxLength: 50
+          example: "DOC-2025-001"
+        title:
+          type: string
+          description: Judul dokumen
+          maxLength: 255
+          example: "Perjanjian Interkoneksi Data Kependudukan"
+        category:
+          type: string
+          description: Kategori / jenis dokumen
+          enum:
+            - PERJANJIAN
+            - NOTA_KESEPAHAMAN
+            - SK
+            - SURAT_EDARAN
+            - LAINNYA
+          example: "PERJANJIAN"
+        status:
+          type: string
+          description: Status dokumen saat ini
+          enum:
+            - DRAFT
+            - AKTIF
+            - KADALUARSA
+            - DICABUT
+          example: "AKTIF"
+        file_url:
+          type: string
+          format: uri
+          description: URL ke file dokumen (PDF/Word) di object storage
+          example: "https://storage.nqa.go.id/documents/DOC-2025-001.pdf"
+        created_at:
+          type: string
+          format: date-time
+          description: Waktu pembuatan dokumen (ISO 8601 + timezone)
+          example: "2025-01-15T08:30:00+07:00"
+          readOnly: true
+      required:
+        - id
+        - document_code
+        - title
+        - category
+        - status
+        - created_at
+
+    # ---- Request Body ----
+    CreateDocumentRequest:
+      type: object
+      description: Payload untuk membuat dokumen baru
+      properties:
+        document_code:
+          type: string
+          description: Kode dokumen unik
+          maxLength: 50
+          example: "DOC-2025-003"
+        title:
+          type: string
+          description: Judul dokumen
+          maxLength: 255
+          example: "Perjanjian Interkoneksi Data Kesehatan 2025"
+        category:
+          type: string
+          enum:
+            - PERJANJIAN
+            - NOTA_KESEPAHAMAN
+            - SK
+            - SURAT_EDARAN
+            - LAINNYA
+          example: "PERJANJIAN"
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - AKTIF
+            - KADALUARSA
+            - DICABUT
+          default: "DRAFT"
+          example: "DRAFT"
+        file_url:
+          type: string
+          format: uri
+          description: URL ke file dokumen
+          example: "https://storage.nqa.go.id/documents/DOC-2025-003.pdf"
+      required:
+        - document_code
+        - title
+        - category
+
+    # ---- Response Envelopes ----
+    DocumentListResponse:
+      type: object
+      description: Envelope standar untuk response list dokumen
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        meta:
+          $ref: "#/components/schemas/ListMeta"
+      required:
+        - success
+        - data
+        - meta
+
+    DocumentDetailResponse:
+      type: object
+      description: Envelope standar untuk response detail / create dokumen
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Document"
+        meta:
+          $ref: "#/components/schemas/BaseMeta"
+      required:
+        - success
+        - data
+        - meta
+
+    # ---- Meta Objects ----
+    BaseMeta:
+      type: object
+      description: Metadata dasar yang selalu disertakan dalam setiap response
+      properties:
+        request_id:
+          type: string
+          description: ID unik untuk setiap request (berguna untuk tracing/logging)
+          example: "req-abc123"
+        timestamp:
+          type: string
+          format: date-time
+          description: Waktu server memproses request
+          example: "2025-03-01T14:00:00+07:00"
+      required:
+        - request_id
+        - timestamp
+
+    ListMeta:
+      allOf:
+        - $ref: "#/components/schemas/BaseMeta"
+        - type: object
+          description: Metadata tambahan khusus untuk response list (berisi info pagination)
+          properties:
+            pagination:
+              $ref: "#/components/schemas/Pagination"
+          required:
+            - pagination
+
+    Pagination:
+      type: object
+      description: Informasi pagination
+      properties:
+        page:
+          type: integer
+          description: Halaman saat ini
+          example: 1
+        page_size:
+          type: integer
+          description: Jumlah item per halaman
+          example: 10
+        total_items:
+          type: integer
+          description: Total seluruh item di database
+          example: 42
+        total_pages:
+          type: integer
+          description: Total halaman berdasarkan page_size
+          example: 5
+      required:
+        - page
+        - page_size
+        - total_items
+        - total_pages
+
+    # ---- Error Model ----
+    ErrorDetail:
+      type: object
+      description: Detail error untuk satu field / kondisi
+      properties:
+        field:
+          type: string
+          description: Nama field yang bermasalah (khusus validation error)
+          example: "title"
+        message:
+          type: string
+          description: Pesan penjelasan error
+          example: "Field title wajib diisi"
+
+    ErrorBody:
+      type: object
+      description: Isi error
+      properties:
+        code:
+          type: string
+          description: Kode error yang bisa diprogram (machine-readable)
+          enum:
+            - VALIDATION_ERROR
+            - DOCUMENT_NOT_FOUND
+            - INTERNAL_ERROR
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Pesan error yang ramah pengguna (human-readable)
+          example: "Data yang dikirim tidak valid"
+        detail:
+          type: array
+          description: Daftar detail error (kosong jika tidak ada)
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+      required:
+        - code
+        - message
+        - detail
+
+    ErrorMeta:
+      type: object
+      description: Metadata khusus untuk response error
+      properties:
+        path:
+          type: string
+          description: Path endpoint yang menghasilkan error
+          example: "/v1/documents"
+      required:
+        - path
+
+    ErrorResponse:
+      type: object
+      description: Envelope standar untuk semua response error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+        meta:
+          $ref: "#/components/schemas/ErrorMeta"
+      required:
+        - success
+        - error
+        - meta
+
+  # ---- Security Schemes (siap untuk dikembangkan) ----
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token yang diperoleh dari endpoint autentikasi
+
+# Uncomment baris di bawah ini jika semua endpoint memerlukan autentikasi:
+# security:
+#   - BearerAuth: []
